@@ -1,0 +1,3 @@
+# .gitignore
+.clasp.json
+config.local.js

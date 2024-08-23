@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #result { margin-bottom: 20px; }
+        #modifiedCompletion { width: 100%; height: 200px; }
+        .button-container { display: flex; justify-content: space-between; margin-top: 20px; }
+        button { padding: 10px 20px; }
+        #debug { margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div id="result"></div>
+    <textarea id="modifiedCompletion"></textarea>
+    <div class="button-container">
+        <button onclick="acceptCompletion()">Accept</button>
+        <button onclick="google.script.host.close()">Cancel</button>
+    </div>
+    <div id="debug"></div>
+
+    <script>
+        function loadResult() {
+            console.log('loadResult function called');
+            document.getElementById('debug').innerHTML += '<p>loadResult function called</p>';
+
+            google.script.run
+                .withSuccessHandler(function(resultJson) {
+                    console.log('Result received:', resultJson);
+                    document.getElementById('debug').innerHTML += '<p>Result received: ' + resultJson + '</p>';
+
+                    if (resultJson) {
+                        try {
+                            const result = JSON.parse(resultJson);
+                            console.log('Parsed result:', result);
+                            document.getElementById('debug').innerHTML += '<p>Parsed result: ' + JSON.stringify(result) + '</p>';
+
+                            document.getElementById('result').innerHTML = `
+                                <p><strong>Context before:</strong> <span style="color: blue;">${result.before || ''}</span></p>
+                                <p><strong>New text:</strong> <span style="color: gray;">${result.new || ''}</span></p>
+                                <p><strong>Context after:</strong> <span style="color: blue;">${result.after || ''}</span></p>
+                            `;
+                            document.getElementById('modifiedCompletion').value = result.new || '';
+                        } catch (e) {
+                            console.error('Error parsing result:', e);
+                            document.getElementById('debug').innerHTML += '<p>Error parsing result: ' + e.message + '</p>';
+                            document.getElementById('result').innerHTML = '<p>Error parsing result: ' + e.message + '</p>';
+                        }
+                    } else {
+                        console.error('No result received');
+                        document.getElementById('debug').innerHTML += '<p>No result received</p>';
+                        document.getElementById('result').innerHTML = '<p>Error: No result received</p>';
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.error('Error retrieving result:', error);
+                    document.getElementById('debug').innerHTML += '<p>Error retrieving result: ' + error + '</p>';
+                    document.getElementById('result').innerHTML = '<p>Error: ' + error + '</p>';
+                })
+                .getProperty('autocompleteResult');
+        }
+
+        function acceptCompletion() {
+            const modifiedText = document.getElementById('modifiedCompletion').value;
+            google.script.run.withSuccessHandler(google.script.host.close).insertTextAtCursor(modifiedText);
+        }
+
+        window.onload = loadResult;
+    </script>
+</body>
+</html>

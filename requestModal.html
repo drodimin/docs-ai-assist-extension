@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #properties {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 5px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        .property-input {
+            width: 30%;
+            padding: 5px;
+        }
+        #context { margin-bottom: 20px; }
+        .context-before { color: blue; }
+        .context-after { color: green; }
+        .button-container { display: flex; justify-content: space-between; margin-top: 20px; }
+        button { padding: 10px 20px; }
+        #loading { display: none; text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div id="properties">
+        <input type="number" id="maxTokens" class="property-input" placeholder="Max Tokens">
+        <input type="number" id="temperature" class="property-input" step="0.1" min="0" max="1" placeholder="Temperature">
+        <input type="number" id="maxContextSize" class="property-input" placeholder="Max Context Size">
+    </div>
+    <div id="context"></div>
+    <div class="button-container">
+        <button onclick="runAutocomplete()">Autocomplete</button>
+        <button onclick="google.script.host.close()">Cancel</button>
+    </div>
+    <div id="loading">
+        <p>Loading...</p>
+        <img src="https://www.google.com/images/spin-32.gif" alt="Loading spinner">
+    </div>
+
+    <script>
+        console.log('Script in requestModal.html started');
+
+        function loadContext() {
+            console.log('loadContext function called');
+            google.script.run
+                .withSuccessHandler(function(properties) {
+                    console.log('Properties received:', JSON.stringify(properties));
+                    if (properties) {
+                        document.getElementById('context').innerHTML = `
+                            <p><strong>Context before:</strong> <span class="context-before">${properties.contextBefore || ''}</span></p>
+                            <p><strong>Context after:</strong> <span class="context-after">${properties.contextAfter || ''}</span></p>
+                        `;
+                        document.getElementById('maxTokens').value = properties.maxTokens || '';
+                        document.getElementById('temperature').value = properties.temperature || '';
+                        document.getElementById('maxContextSize').value = properties.maxContextSize || '';
+                    } else {
+                        console.error('No properties received');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    console.error('Error in getProperties:', error);
+                    alert('An error occurred while loading the context. Please try again.');
+                })
+                .getProperties(['contextBefore', 'contextAfter', 'maxTokens', 'temperature', 'maxContextSize']);
+        }
+
+        function runAutocomplete() {
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const maxContextSize = parseInt(document.getElementById('maxContextSize').value);
+
+            document.getElementById('loading').style.display = 'block';
+
+            google.script.run
+                .withSuccessHandler(function() {
+                    document.getElementById('loading').style.display = 'none';
+                    google.script.host.close();
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Error: ' + error.message);
+                })
+                .runAutocomplete(maxTokens, temperature, maxContextSize);
+        }
+
+        function acceptCompletion() {
+            const modifiedText = document.getElementById('modifiedCompletion').value;
+            google.script.run
+                .withSuccessHandler(function() {
+                    console.log('Text inserted successfully');
+                    google.script.host.close();
+                })
+                .withFailureHandler(function(error) {
+                    console.error('Error inserting text:', error);
+                    alert('Error inserting text: ' + error);
+                })
+                .insertTextAtCursor(modifiedText);
+        }
+
+        window.onload = function() {
+            console.log('Window onload event fired');
+            loadContext();
+        };
+    </script>
+</body>
+</html>
