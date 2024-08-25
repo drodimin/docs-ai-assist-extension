@@ -1,8 +1,8 @@
+
 function onOpen(e) {
   DocumentApp.getUi()
     .createMenu('AI Assist')
     .addItem('Show/Hide Sidebar', 'toggleSidebar')
-    .addItem('Autocomplete', 'autocomplete')
     .addToUi();
 }
 
@@ -14,61 +14,49 @@ function toggleSidebar() {
   ui.showSidebar(sidebar);
 }
 
-function showInitialModal() {
-  console.log('showInitialModal function called');
-  const context = getContext(CONFIG.MAX_CONTEXT_SIZE);
-  console.log('Context retrieved:', JSON.stringify(context));
-  
-  const html = HtmlService.createHtmlOutputFromFile('requestModal')
+function getAutocompleteInput() {
+  const cursorInfo = getCursorInfo();
+
+  if(!cursorInfo) {
+    // show error message
+    throw new Error('No cursor found. Position the cursor in the document and try again.');
+  }
+
+  return cursorInfo;
+}
+
+function showRequestModal(data) {
+  const template = HtmlService.createTemplateFromFile('requestModal');
+  template.data = data;
+  const html = template.evaluate()
+      .setTitle('Autocomplete Request')
       .setWidth(600)
-      .setHeight(500);
-  console.log('HTML file loaded');
-  
-  DocumentApp.getUi().showModalDialog(html, 'Autocomplete');
-  console.log('Modal dialog shown');
-  
-  const properties = {
-    'contextBefore': context.before,
-    'contextAfter': context.after,
-    'maxTokens': CONFIG.MAX_TOKENS.toString(),
-    'temperature': CONFIG.TEMPERATURE.toString(),
-    'maxContextSize': CONFIG.MAX_CONTEXT_SIZE.toString()
-  };
-
-  console.log('Setting properties:', JSON.stringify(properties));
-  PropertiesService.getUserProperties().setProperties(properties);
-  console.log('Properties set');
+      .setHeight(600);
+  DocumentApp.getUi().showModalDialog(html, 'Autocomplete Request');
 }
 
-
-function autocomplete() {
-  showInitialModal();
-}
-
-function runAutocomplete(maxTokens, temperature, maxContextSize) {
-  const context = getContext(maxContextSize);
-  
+function sendAutocompleteRequest(before, after, messageGuidelines, maxTokens) {
   const userContent = {
-    TEXT_BEFORE: context.before,
-    TEXT_AFTER: context.after
+    TEXT_BEFORE: before,
+    TEXT_AFTER: after,
+    MESSAGE_GUIDELINES: messageGuidelines,
   };
-
-  console.log('Sending to API:', JSON.stringify(userContent));
-
-  const completion = callOpenAI("gpt-4o-mini", maxTokens, temperature, CONFIG.PROMPT, userContent);
-  console.log('Received completion:', JSON.stringify(completion));
-
-  showResultModal(completion);
-}
-
-function showResultModal(result) {
-  const html = HtmlService.createHtmlOutputFromFile('resultModal')
-      .setWidth(600)
-      .setHeight(500);
-  DocumentApp.getUi().showModalDialog(html, 'Autocomplete Result');
   
-  console.log('Storing result in UserProperties:', JSON.stringify(result));
-  PropertiesService.getUserProperties().setProperty('autocompleteResult', JSON.stringify(result));
+  console.log('Sending to API:', JSON.stringify(userContent));
+  
+    const completion = callOpenAI("gpt-4o-mini", maxTokens, CONFIG.TEMPERATURE, CONFIG.PROMPT, userContent);
+    console.log('Received completion:', JSON.stringify(completion));
+    showResultModal(completion);
+  }
+
+function showResultModal(data) {
+  const template = HtmlService.createTemplateFromFile('resultModal');
+  template.data = data;
+  const html = template.evaluate()
+      .setTitle('Autocomplete Result')
+      .setWidth(600)
+      .setHeight(600);
+  DocumentApp.getUi().showModalDialog(html, 'Autocomplete Result');
 }
 
 function getProperties(propertyNames) {
@@ -80,6 +68,21 @@ function getProperties(propertyNames) {
   return properties;
 }
 
+function saveProperties(properties) {
+  const userProperties = PropertiesService.getUserProperties();
+  Object.keys(properties).forEach(name => {
+    userProperties.setProperty(name, properties[name]);
+  });
+}
+
 function getProperty(key) {
   return PropertiesService.getUserProperties().getProperty(key);
+}
+
+function saveMessageGuidelines(messageGuidelines) {
+  PropertiesService.getUserProperties().setProperty('messageGuidelines', messageGuidelines);
+}
+
+function saveSetting(property, value) {
+  PropertiesService.getUserProperties().setProperty(property, value);
 }
