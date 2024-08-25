@@ -3,7 +3,9 @@ const getCursorInfo = () => {
   const cursor = document.getCursor();
   if (cursor) {
     return{
-      element: getElementInfo(cursor.getElement()),
+      element: {
+        type: String(cursor.getElement().getType()),
+            },
       offset: cursor.getOffset(),
       surroundingText: cursor.getSurroundingText().getText(),
       surroundingTextOffset: cursor.getSurroundingTextOffset()
