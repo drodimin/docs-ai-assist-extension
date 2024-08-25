@@ -12,9 +12,29 @@
   </head>
   <body>
     <button onclick="runAutocomplete()">Autocomplete</button>
+    <button onclick="testResultModal()">Result Modal</button>
+    <details>
+      <summary>Settings</summary>
+      <div id="maxtokens"></div>
+    </details>
     <script>
       function runAutocomplete() {
-        google.script.run.autocomplete();
+        google.script.run
+        .withSuccessHandler(function(data) {
+            google.script.run.showRequestModal(data);
+          })
+          .withFailureHandler(handleError)
+          .getAutocompleteInput();
+      }
+
+      function handleError(error) {
+        alert('An error occurred: ' + error.message);
+      }
+
+      function testResultModal() {
+        const testResult = 'put a sample result here';
+        google.script.run
+          .showResultModal(JSON.parse(testResult));
       }
     </script>
   </body>

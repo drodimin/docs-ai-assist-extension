@@ -4,36 +4,53 @@
     <base target="_top">
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
-        #properties {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            padding: 5px;
-            background-color: #f0f0f0;
-            border-radius: 4px;
-        }
-        .property-input {
-            width: 30%;
-            padding: 5px;
-        }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select, textarea { width: 100%; padding: 5px; }
         #context { margin-bottom: 20px; }
-        .context-before { color: blue; }
-        .context-after { color: green; }
         .button-container { display: flex; justify-content: space-between; margin-top: 20px; }
         button { padding: 10px 20px; }
         #loading { display: none; text-align: center; margin-top: 20px; }
+        #error { display: none; color: red; margin-top: 10px; }
+        .context { color: blue;}
+        .insert { color: red; }
+        .debug { color: gray; font-size: 9px; }
+        details {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        details summary {
+            font-weight: bold;
+        }
+
+        details div {
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
-    <div id="properties">
-        <input type="number" id="maxTokens" class="property-input" placeholder="Max Tokens">
-        <input type="number" id="temperature" class="property-input" step="0.1" min="0" max="1" placeholder="Temperature">
-        <input type="number" id="maxContextSize" class="property-input" placeholder="Max Context Size">
+    <div id="templateData" style="display:none"><?= JSON.stringify(data) ?></div>
+    <details>
+        <summary>Debug Info</summary>
+        <div id="debug"></div>
+      </details>
+    <div id ="inputs" class="context"></div>
+
+    <div class="form-group">
+        <label for="messageGuidelines">Message Guidelines:</label>
+        <textarea id="messageGuidelines" rows="4" placeholder="Specify the message or theme that the generated text should convey"></textarea>
     </div>
-    <div id="context"></div>
+    <div class="form-group">
+        <label for="maxTokens">Max Tokens:</label>
+        <input type="number" id="maxTokens" value="500" min="1" max="1000" step="1">
+    </div>
+    <div id="error"></div>
     <div class="button-container">
-        <button onclick="runAutocomplete()">Autocomplete</button>
         <button onclick="google.script.host.close()">Cancel</button>
+        <button onclick="runAutocomplete()">Send Request</button>
     </div>
     <div id="loading">
         <p>Loading...</p>
@@ -41,69 +58,102 @@
     </div>
 
     <script>
-        console.log('Script in requestModal.html started');
-
+        const rawData = document.getElementById('templateData').textContent;
+        const data = JSON.parse(rawData);
+        let before, after;
         function loadContext() {
-            console.log('loadContext function called');
+            console.log('Loading context...', data);
+            const totalOffset = getTotalOffset(data.element.type, data.offset, data.surroundingTextOffset);
+            before = data.surroundingText.substring(0, totalOffset);
+            after = data.surroundingText.substring(totalOffset);
+
+            const contextDiv = document.getElementById('inputs');
+            contextDiv.innerHTML = '';
+            if (before) {
+                const beforeDiv = document.createElement('div');
+                beforeDiv.classList.add('context');
+                beforeDiv.textContent = before;
+                contextDiv.appendChild(beforeDiv);
+            }
+            const insertDiv = document.createElement('div');
+            insertDiv.classList.add('insert');
+            insertDiv.textContent = '*INSERT TEXT*';
+            contextDiv.appendChild(insertDiv);
+            if (after) {
+                const afterDiv = document.createElement('div');
+                afterDiv.classList.add('context');
+                afterDiv.textContent = after;
+                contextDiv.appendChild(afterDiv);
+            }
+
+            const debugDiv = document.getElementById('debug');
+            const debugInputDiv = document.createElement('div');
+            debugInputDiv.innerHTML = JSON.stringify(data, null, 2);
+            debugDiv.appendChild(debugInputDiv);;
+
+
+            // load getProperties(propertyNames) to load message guidelines and max tokens
             google.script.run
-                .withSuccessHandler(function(properties) {
-                    console.log('Properties received:', JSON.stringify(properties));
-                    if (properties) {
-                        document.getElementById('context').innerHTML = `
-                            <p><strong>Context before:</strong> <span class="context-before">${properties.contextBefore || ''}</span></p>
-                            <p><strong>Context after:</strong> <span class="context-after">${properties.contextAfter || ''}</span></p>
-                        `;
-                        document.getElementById('maxTokens').value = properties.maxTokens || '';
-                        document.getElementById('temperature').value = properties.temperature || '';
-                        document.getElementById('maxContextSize').value = properties.maxContextSize || '';
-                    } else {
-                        console.error('No properties received');
-                    }
+                .withSuccessHandler(function(result) {
+                    document.getElementById('messageGuidelines').value = result.messageGuidelines;
+                    document.getElementById('maxTokens').value = result.maxTokens;
                 })
                 .withFailureHandler(function(error) {
-                    console.error('Error in getProperties:', error);
-                    alert('An error occurred while loading the context. Please try again.');
+                    console.log(error);
                 })
-                .getProperties(['contextBefore', 'contextAfter', 'maxTokens', 'temperature', 'maxContextSize']);
+                .getProperties(['messageGuidelines', 'maxTokens']);
         }
 
         function runAutocomplete() {
-            const maxTokens = parseInt(document.getElementById('maxTokens').value);
-            const temperature = parseFloat(document.getElementById('temperature').value);
-            const maxContextSize = parseInt(document.getElementById('maxContextSize').value);
+            if(!before && !after) {
+                alert('must have at least one surrounding text: before or after');
+                return;
+            }
+            const messageGuidelines = document.getElementById('messageGuidelines').value;
+            const maxTokens = Number(document.getElementById('maxTokens').value);
 
             document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
 
             google.script.run
-                .withSuccessHandler(function() {
+                .withSuccessHandler(function(result) {
                     document.getElementById('loading').style.display = 'none';
-                    google.script.host.close();
+                    const debugDiv = document.getElementById('debug');
+                    const debugResultDiv = document.createElement('div');
+                    debugResultDiv.innerHTML = JSON.stringify(result, null, 2);
+                    debugDiv.appendChild(debugResultDiv);;
+
+                    if (result.success) {
+                        google.script.host.close();
+                    } else {
+                        document.getElementById('error').innerHTML = result.errorMessage;
+                        document.getElementById('error').style.display = 'block';
+                        if (result.errorType === 'TOKEN_LIMIT_REACHED') {
+                            document.getElementById('maxTokens').focus();
+                        }
+                    }
                 })
                 .withFailureHandler(function(error) {
                     document.getElementById('loading').style.display = 'none';
-                    alert('Error: ' + error.message);
+                    document.getElementById('error').innerHTML = 'Error: ' + error.message;
+                    document.getElementById('error').style.display = 'block';
                 })
-                .runAutocomplete(maxTokens, temperature, maxContextSize);
-        }
+                .sendAutocompleteRequest(before, after, messageGuidelines, maxTokens);
 
-        function acceptCompletion() {
-            const modifiedText = document.getElementById('modifiedCompletion').value;
+            // Save message guidelines and max tokens using saveProperties on server side
             google.script.run
-                .withSuccessHandler(function() {
-                    console.log('Text inserted successfully');
-                    google.script.host.close();
-                })
-                .withFailureHandler(function(error) {
-                    console.error('Error inserting text:', error);
-                    alert('Error inserting text: ' + error);
-                })
-                .insertTextAtCursor(modifiedText);
+                .saveProperties(['messageGuidelines', 'maxTokens'], messageGuidelines, document.getElementById('maxTokens').value);
         }
 
-        window.onload = function() {
-            console.log('Window onload event fired');
-            loadContext();
-        };
+        function getTotalOffset(element, offset, surroundingTextOffset) {
+            if(element === 'TEXT') {
+                return offset;
+            } else if(element === 'PARAGRAPH') {
+                return offset + surroundingTextOffset;
+            }
+        }
+
+        window.onload = loadContext;
     </script>
 </body>
 </html>
