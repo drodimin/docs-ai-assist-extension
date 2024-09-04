@@ -1,16 +1,23 @@
 // config.js
 let CONFIG = {
-  PROMPT: `You are an AI writing assistant that generates new text based on the content before and after a cursor position. Your task is to analyze two variables:
-  * \`{{TEXT_BEFORE}}\`: Text before the cursor (may be empty).
-  * \`{{TEXT_AFTER}}\`: Text after the cursor (may be empty).
-You might also receive {{MESSAGE_GUIDELINES}}, which specifies the message or theme that the generated text should convey.
-Generate new text according to these rules:
-  1. **Insert**: If both \`TEXT_BEFORE\` and \`TEXT_AFTER\` contain content, generate text that fits between them.
-  2. **Add**: If \`TEXT_AFTER\` is empty, continue from \`TEXT_BEFORE\`.
-  3. **Prepend**: If \`TEXT_BEFORE\` is empty, lead into \`TEXT_AFTER\`.
-Ensure the new text matches the style, tone, and flow of the existing text. If {{MESSAGE_GUIDELINES}} are provided, aim to convey the specified message. Keep it concise (2-3 sentences unless more is needed).
-Output must be in JSON format:
-\`{ "before": "{{TEXT_BEFORE}}", "after": "{{TEXT_AFTER}}", "new": "Your generated text" }\``,
+  PROMPT_COMPLETE: `Generate text based on the following context:
+<TEXT_BEFORE>: Content before the cursor (may be empty).
+<TEXT_AFTER>: Content after the cursor (may be empty).
+<MESSAGE_GUIDELINES>: Optional theme or message to convey.
+Rules:
+1. If both contexts exist, bridge them.
+2. If <TEXT_AFTER> is empty, continue <TEXT_BEFORE>.
+3. If <TEXT_BEFORE> is empty, lead into <TEXT_AFTER>.
+Match existing style and tone. Incorporate <MESSAGE_GUIDELINES> if provided. Be concise (2-3 sentences unless more needed).
+Return only the generated text.`,
+  PROMPT_IMPROVE: `Improve the provided text by refining word choice, grammar, and sentence structure while keeping the length similar. Use the surrounding context to maintain flow and follow any additional instructions for style or tone.
+  Arguments:
+  <TEXT_BEFORE>: Text preceding the section to improve.
+  <TEXT_AFTER>: Text following the section to improve.
+  <TEXT_TO_IMPROVE>: The main text to enhance.
+  <ADDITIONAL_INSTRUCTIONS>: Specific guidelines for the revision.
+  Task:
+  Return only the improved version of <TEXT_TO_IMPROVE>`,
   MAX_TOKENS: 150,
   TEMPERATURE: 0.7,
   MAX_CONTEXT_SIZE: 1000
@@ -23,31 +30,4 @@ if(!LOCAL_CONFIG) {
   // merge LOCAL_CONFIG with CONFIG
   if (typeof LOCAL_CONFIG !== 'undefined') {
     CONFIG = { ...CONFIG, ...LOCAL_CONFIG };
-  }
-
-  // for future use
-  function initializeConfig() {
-    // Create a copy of the CONFIG object
-    const runningConfig = JSON.parse(JSON.stringify(CONFIG));
-    
-    // Load saved preferences from PropertiesService
-    const userProperties = PropertiesService.getUserProperties();
-  
-    // Iterate over each property in CONFIG and check if a saved value exists
-    for (const key in CONFIG) {
-      const savedValue = userProperties.getProperty(key);
-      
-      if (savedValue !== null) {
-        // Convert the saved value back to its original type (if necessary)
-        if (typeof CONFIG[key] === 'boolean') {
-          runningConfig[key] = (savedValue === 'true');
-        } else if (typeof CONFIG[key] === 'number') {
-          runningConfig[key] = Number(savedValue);
-        } else {
-          runningConfig[key] = savedValue;
-        }
-      }
-    }
-  
-    return runningConfig;
   }

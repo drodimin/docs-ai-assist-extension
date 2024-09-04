@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <?!= include('styles.css') ?>
+</head>
+<body>
+    <div id="templateData" style="display:none"><?= JSON.stringify(data) ?></div>
+    <details>
+        <summary>Debug Info</summary>
+        <div id="debug"><?= JSON.stringify(data) ?></div>
+      </details>
+    <div id ="inputs" class="context"></div>
+
+    <div class="form-group">
+        <label for="additionalInstructions">Addditional Instructions:</label>
+        <textarea id="additionalInstructions" rows="2" placeholder="Specify any additional instructions for improving the text"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="maxTokens">Max Tokens:</label>
+        <input type="number" id="maxTokens" value="500" min="1" max="1000" step="1">
+    </div>
+    <div id="error"></div>
+    <div class="button-container">
+        <button onclick="google.script.host.close()">Cancel</button>
+        <button onclick="runImprove()">Send Request</button>
+    </div>
+    <div id="loading">
+        <p>Loading...</p>
+        <img src="https://www.google.com/images/spin-32.gif" alt="Loading spinner">
+    </div>
+
+    <script>
+        const rawData = document.getElementById('templateData').textContent;
+        const data = JSON.parse(rawData);
+        let before, after, selected;
+        function loadContext() {
+            before = data.fullText.substring(0, data.startOffset);
+            after = data.fullText.substring(data.endOffsetInclusive);
+            selected = data.fullText.substring(data.startOffset, data.endOffsetInclusive);
+
+            const addInputDiv = (parent, text, classname) => {
+                const div = document.createElement('div');
+                div.classList.add(classname);
+                div.textContent = text;
+                parent.appendChild(div);
+            };
+
+            const contextDiv = document.getElementById('inputs');
+            if (before) {
+                addInputDiv(contextDiv, before, 'context');
+            }
+            addInputDiv(contextDiv, selected, 'insert');
+            if (after) {
+                addInputDiv(contextDiv, after, 'context');
+            }
+        }
+
+        function runImprove() {
+            if(!selected) {
+                alert('No text selected');
+                return;
+            }
+            const additionalInstructions = document.getElementById('additionalInstructions').value;
+            const maxTokens = Number(document.getElementById('maxTokens').value);
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('loading').style.display = 'none';
+                    // close modal
+                    google.script.host.close();
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').innerHTML = 'Error: ' + error.message;
+                    document.getElementById('error').style.display = 'block';
+                })
+                .sendImproveRequest(before, after, selected, additionalInstructions, maxTokens);
+        }
+
+        function getTotalOffset(element, offset, surroundingTextOffset) {
+            if(element === 'TEXT') {
+                return offset;
+            } else if(element === 'PARAGRAPH') {
+                return offset + surroundingTextOffset;
+            }
+        }
+
+        window.onload = loadContext;
+    </script>
+</body>
+</html>
