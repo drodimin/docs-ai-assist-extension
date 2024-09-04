@@ -1,23 +1,14 @@
-function callOpenAI(modelName, maxTokens, temperature, systemPrompt, userContent) {
+function callOpenAI(modelName, maxTokens, temperature, systemPrompt, userPrompt) {
   const url = 'https://api.openai.com/v1/chat/completions';
-  
-  // Escape special characters in userContent
-  const escapedUserContent = JSON.stringify(userContent, (key, value) => {
-    if (typeof value === 'string') {
-      return value.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
-    }
-    return value;
-  });
   
   const payload = {
     model: modelName,
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: escapedUserContent }
+      { role: "user", content: userPrompt }
     ],
     max_tokens: maxTokens,
     temperature: temperature,
-    response_format: { "type": "json_object" }
   };
 
   const options = {
@@ -51,12 +42,7 @@ function callOpenAI(modelName, maxTokens, temperature, systemPrompt, userContent
         throw new Error("TOKEN_LIMIT_REACHED");
       }
       
-      // Try to parse the content as JSON
-      try {
-        return JSON.parse(content);
-      } catch (parseError) {
-        throw new Error(`Failed to parse response content as JSON: ${parseError}`);
-      }
+      return content;
     } else {
       throw new Error('Unexpected response format from OpenAI API');
     }

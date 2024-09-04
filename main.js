@@ -3,7 +3,8 @@ function onOpen(e) {
   DocumentApp.getUi()
     .createMenu('AI Assist')
     .addItem('Show/Hide Sidebar', 'toggleSidebar')
-    .addToUi();
+    .addItem('Show inspectorsidebar', 'showInspectorSidebar')
+    .addToUi(); 
 }
 
 function toggleSidebar() {
@@ -12,17 +13,6 @@ function toggleSidebar() {
       .setTitle('AI Assist Toolbar')
       .setWidth(150);
   ui.showSidebar(sidebar);
-}
-
-function getAutocompleteInput() {
-  const cursorInfo = getCursorInfo();
-
-  if(!cursorInfo) {
-    // show error message
-    throw new Error('No cursor found. Position the cursor in the document and try again.');
-  }
-
-  return cursorInfo;
 }
 
 function showRequestModal(data) {
@@ -35,20 +25,15 @@ function showRequestModal(data) {
   DocumentApp.getUi().showModalDialog(html, 'Autocomplete Request');
 }
 
-function sendAutocompleteRequest(before, after, messageGuidelines, maxTokens) {
-  const userContent = {
-    TEXT_BEFORE: before,
-    TEXT_AFTER: after,
-    MESSAGE_GUIDELINES: messageGuidelines,
-  };
-  
-  console.log('Sending to API:', JSON.stringify(userContent));
-  
-    const completion = callOpenAI("gpt-4o-mini", maxTokens, CONFIG.TEMPERATURE, CONFIG.PROMPT, userContent);
-    console.log('Received completion:', JSON.stringify(completion));
-    showResultModal(completion);
-  }
-
+function showModal(data, nameOfModal, title) {
+  const template = HtmlService.createTemplateFromFile(nameOfModal);
+  template.data = data;
+  const html = template.evaluate()
+      .setTitle(title)
+      .setWidth(600)
+      .setHeight(600);
+  DocumentApp.getUi().showModalDialog(html, 'Autocomplete Request');
+}
 function showResultModal(data) {
   const template = HtmlService.createTemplateFromFile('resultModal');
   template.data = data;
@@ -59,30 +44,21 @@ function showResultModal(data) {
   DocumentApp.getUi().showModalDialog(html, 'Autocomplete Result');
 }
 
-function getProperties(propertyNames) {
-  const userProperties = PropertiesService.getUserProperties();
-  const properties = {};
-  propertyNames.forEach(name => {
-    properties[name] = userProperties.getProperty(name);
-  });
-  return properties;
+// functions for getting input from document
+function getImproveInput() {
+  const selection = getSelectionInfo();
+  if(!selection) {
+    throw new Error('No selection found. Select text in single paragraph and try again.');
+  }
+  return selection;
 }
 
-function saveProperties(properties) {
-  const userProperties = PropertiesService.getUserProperties();
-  Object.keys(properties).forEach(name => {
-    userProperties.setProperty(name, properties[name]);
-  });
-}
+function getAutocompleteInput() {
+  const cursorInfo = getCursorInfo();
 
-function getProperty(key) {
-  return PropertiesService.getUserProperties().getProperty(key);
-}
+  if(!cursorInfo) {
+    throw new Error('No cursor found. Position the cursor in the document and try again.');
+  }
 
-function saveMessageGuidelines(messageGuidelines) {
-  PropertiesService.getUserProperties().setProperty('messageGuidelines', messageGuidelines);
-}
-
-function saveSetting(property, value) {
-  PropertiesService.getUserProperties().setProperty(property, value);
+  return cursorInfo;
 }

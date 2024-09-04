@@ -2,13 +2,8 @@
 <html>
 <head>
     <base target="_top">
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .button-container { display: flex; justify-content: space-between; margin-top: 20px; }
-        button { padding: 10px 20px; }
-        .context { color: blue;}
-        .debug { color: gray; font-size: 9px; }
-    </style>
+    <?!= include('styles.css') ?>
+    <?!= include('html-utils.js') ?>
 </head>
 <body>
     <div id="templateData" style="display:none"><?= JSON.stringify(data) ?></div>
@@ -28,14 +23,26 @@
         const data = JSON.parse(rawData);
 
         function loadResult() {
-            const result = document.getElementById('result');
-            const beforeDiv = data.before ? createContextDiv(data.before) : null;
-            const newDiv = createNewDiv(data.new);
-            const afterDiv = data.after ? createContextDiv(data.after) : null;
+            const debug = document.getElementById('debug');
+            Object.keys(data).forEach(key => {
+                const header = document.createElement('h2');
+                header.textContent = key;
+                debug.appendChild(header);
 
-            if (beforeDiv) result.appendChild(beforeDiv);
-            result.appendChild(newDiv);
-            if (afterDiv) result.appendChild(afterDiv);
+                const value = data[key];
+                const valueDiv = document.createElement('div');
+                valueDiv.textContent = value;
+                debug.appendChild(valueDiv);
+            });
+
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.appendChild(createContextDiv(data.before));
+            if(data.selection){
+                appendDiv(resultDiv, 'New Text', 'delete');
+            }
+            resultDiv.appendChild(createNewDiv(data.completion));
+            resultDiv.appendChild(createContextDiv(data.after));
         }
 
         function createContextDiv(text) {
@@ -68,7 +75,7 @@
                 google.script.host.close();
               })
               .withFailureHandler(handleError)
-              .insertTextAtCursor(modifiedCompletion);
+              .replaceSelection(modifiedCompletion);
         }
 
         onload = loadResult;
