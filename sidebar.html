@@ -13,7 +13,6 @@
   <body>
     <button onclick="runAutocomplete()">Autocomplete</button>
     <button onclick="runImprove()">Improve</button>
-    <button onclick="testResultModal()">Result Modal</button>
     <details>
       <summary>Settings</summary>
       <div id="maxtokens"></div>
@@ -30,12 +29,6 @@
 
       function handleError(error) {
         alert('An error occurred: ' + error.message);
-      }
-
-      function testResultModal() {
-        const testResult = 'put a sample result here';
-        google.script.run
-          .showResultModal(JSON.parse(testResult));
       }
 
       function runImprove() {

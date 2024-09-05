@@ -3,7 +3,6 @@ function onOpen(e) {
   DocumentApp.getUi()
     .createMenu('AI Assist')
     .addItem('Show/Hide Sidebar', 'toggleSidebar')
-    .addItem('Show inspectorsidebar', 'showInspectorSidebar')
     .addToUi(); 
 }
 
@@ -61,4 +60,8 @@ function getAutocompleteInput() {
   }
 
   return cursorInfo;
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
